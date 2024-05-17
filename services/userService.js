@@ -75,6 +75,54 @@ const loginUser = async (email, password) => {
     }
 };
 
+const getInfoById = async (userId) => {
+    try {
+        // Fetch the user by ID including required information
+        const userInfo = await prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+            include: {
+                // Include any additional fields you want to fetch
+                posts: true, // Example: Fetch user's posts
+                comments: true, // Example: Fetch user's comments
+                likes: true, // Example: Fetch user's likes
+                eventsCreated: true, // Example: Fetch events created by the user
+                eventsAttending: true, // Example: Fetch events the user is attending
+                notifications: true, // Example: Fetch user's notifications
+                messagesSent: true, // Example: Fetch messages sent by the user
+                messagesReceived: true, // Example: Fetch messages received by the user
+                friends: {
+                    include: {
+                        friend: true,
+                    },
+                },
+                friendOf: {
+                    include: {
+                        user: true,
+                    },
+                },
+                // Add more fields as needed
+            },
+        });
+
+        // Check if the user exists
+        if (!userInfo) {
+            throw new Error('User not found');
+        }
+
+        // Extract common friends
+        const commonFriends = userInfo.friends.map((friendship) => friendship.friend);
+
+        // Return the user information and common friends
+        userInfo.officialFriends = commonFriends
+        return userInfo
+    } catch (error) {
+        console.error('Error fetching user information:', error);
+        throw error;
+    }
+};
+
 const getFriendsOfUser = async (userId) => {
     try {
         const userWithFriends = await prisma.user.findUnique({
@@ -160,6 +208,44 @@ const getUsersNotInFriendsList = async (userId) => {
     }
 };
 
+const toggleAddFriendRequest = async (userId, friendId) => {
+    try {
+        await prisma.$transaction(async (tx) => {
+            // Check if the friend request already exists
+            const existingFriendship = await tx.friend.findFirst({
+                where: {
+                    userId,
+                    friendId,
+                },
+            });
+
+            if (existingFriendship) {
+                // If the friend request exists, remove it
+                await tx.friend.delete({
+                    where: {
+                        id: existingFriendship.id,
+                    },
+                });
+            } else {
+                // If the friend request does not exist, add it
+                await tx.friend.create({
+                    data: {
+                        userId,
+                        friendId,
+                        status: 'PENDING', // Assuming the default status is PENDING
+                    },
+                });
+            }
+        });
+
+        return { EC: 0, EM: 'Friend request toggled successfully' };
+    } catch (error) {
+        // Handle errors
+        console.error(error);
+        return { EC: -2, EM: 'Internal server error' };
+    }
+};
 
 
-module.exports = { registerUser, loginUser, getFriendsOfUser, getUsersNotInFriendsList };
+
+module.exports = { registerUser, loginUser, getFriendsOfUser, getUsersNotInFriendsList, getInfoById, toggleAddFriendRequest };
