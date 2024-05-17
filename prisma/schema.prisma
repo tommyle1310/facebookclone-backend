@@ -106,16 +106,16 @@ enum FriendStatus {
 }
 
 model Notification {
-  id        Int                   @id @default(autoincrement()) // Unique identifier for the notification
+  id        Int               @id @default(autoincrement()) // Unique identifier for the notification
   message   String // Notification message
-  type      NotificationConstants // Notification type
-  user      User                  @relation(fields: [userId], references: [id]) // The user who received the notification
+  type      NotificationTypes // Notification type
+  user      User              @relation(fields: [userId], references: [id]) // The user who received the notification
   userId    Int // Foreign key referencing the user who received the notification
-  read      Boolean               @default(false) // Whether the notification has been read
-  createdAt DateTime              @default(now()) // Timestamp of when the notification was created
+  read      Boolean           @default(false) // Whether the notification has been read
+  createdAt DateTime          @default(now()) // Timestamp of when the notification was created
 }
 
-enum NotificationConstants {
+enum NotificationTypes {
   MEMORY // MEMORY
   TAG // TAG
   GROUP // NOTIFICATION of the group

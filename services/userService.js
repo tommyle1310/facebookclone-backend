@@ -67,7 +67,7 @@ const loginUser = async (email, password) => {
         const token = jwt.sign({ userId: user.id }, process.env.JWT_KEY);
 
         // Return success response with token
-        return { EC: 0, token };
+        return { EC: 0, token, email: user.email, name: user.name, image: user.image, id: user.id };
     } catch (error) {
         // Handle errors
         console.error(error);
@@ -75,4 +75,91 @@ const loginUser = async (email, password) => {
     }
 };
 
-module.exports = { registerUser, loginUser };
+const getFriendsOfUser = async (userId) => {
+    try {
+        const userWithFriends = await prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+            include: {
+                friends: {
+                    include: {
+                        friend: true,
+                    },
+                },
+                friendOf: {
+                    include: {
+                        user: true,
+                    },
+                },
+            },
+        });
+
+        if (!userWithFriends) {
+            throw new Error('User not found');
+        }
+
+        // Combine friends and friendsOf, then apply the limit
+        const friends = [
+            ...userWithFriends.friends.map(friendship => friendship.friend),
+            ...userWithFriends.friendOf.map(friendship => friendship.user),
+        ].slice(0, 20);
+
+        return friends;
+    } catch (error) {
+        console.error('Error fetching friends:', error);
+        throw error;
+    }
+};
+
+const getUsersNotInFriendsList = async (userId) => {
+    try {
+        // Fetch friends and friendsOf
+        const userWithFriends = await prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+            include: {
+                friends: {
+                    select: {
+                        friendId: true,
+                    },
+                },
+                friendOf: {
+                    select: {
+                        userId: true,
+                    },
+                },
+            },
+        });
+
+        if (!userWithFriends) {
+            throw new Error('User not found');
+        }
+
+        // Extract friends' IDs
+        const friendIds = [
+            ...userWithFriends.friends.map(friendship => friendship.friendId),
+            ...userWithFriends.friendOf.map(friendship => friendship.userId),
+        ];
+
+        // Fetch users who are not in the friends list and not the user himself
+        const usersNotInFriendsList = await prisma.user.findMany({
+            where: {
+                id: {
+                    notIn: [userId, ...friendIds],
+                },
+            },
+            take: 20,
+        });
+
+        return usersNotInFriendsList;
+    } catch (error) {
+        console.error('Error fetching users not in friends list:', error);
+        throw error;
+    }
+};
+
+
+
+module.exports = { registerUser, loginUser, getFriendsOfUser, getUsersNotInFriendsList };
