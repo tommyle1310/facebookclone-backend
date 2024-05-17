@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               Int               @id @default(autoincrement()) // Unique identifier for the user
+  name             String // User's name
+  email            String            @unique // User's email, must be unique
+  password         String // User's password
+  profilePic       String? // Optional profile picture URL
+  bio              String? // Optional user bio
+  posts            Post[] // List of posts created by the user
+  comments         Comment[] // List of comments made by the user
+  likes            Like[] // List of likes given by the user
+  friends          Friend[]          @relation("UserFriends") // List of friends added by the user
+  friendOf         Friend[]          @relation("FriendOf") // List of users who added this user as a friend
+  createdAt        DateTime          @default(now()) // Timestamp of user creation
+  updatedAt        DateTime          @updatedAt // Timestamp of last update
+  groupMemberships GroupMembership[] // Groups the user is a member of
+  eventsCreated    Event[] // Events created by the user
+  eventsAttending  EventAttendee[] // Events the user is attending
+  notifications    Notification[] // Notifications for the user
+  messagesSent     Message[]         @relation("SentMessages") // Messages sent by the user
+  messagesReceived Message[]         @relation("ReceivedMessages") // Messages received by the user
+  Reaction         Reaction[]
+  Group            Group[]
+}
+
+model Post {
+  id        Int        @id @default(autoincrement()) // Unique identifier for the post
+  content   String? // Optional text content for the post
+  imageUrl  String? // Optional image URL for the post
+  videoUrl  String? // Optional video URL for the post
+  author    User       @relation(fields: [authorId], references: [id]) // The user who created the post
+  authorId  Int // Foreign key referencing the user who created the post
+  comments  Comment[] // List of comments on the post
+  likes     Like[] // List of likes on the post
+  createdAt DateTime   @default(now()) // Timestamp of post creation
+  updatedAt DateTime   @updatedAt // Timestamp of last update
+  reactions Reaction[] // List of reactions to the post
+  Group     Group?     @relation(fields: [groupId], references: [id])
+  groupId   Int?
+}
+
+model Comment {
+  id        Int        @id @default(autoincrement()) // Unique identifier for the comment
+  content   String // Text content of the comment
+  author    User       @relation(fields: [authorId], references: [id]) // The user who made the comment
+  authorId  Int // Foreign key referencing the user who made the comment
+  post      Post       @relation(fields: [postId], references: [id]) // The post the comment is related to
+  postId    Int // Foreign key referencing the post
+  createdAt DateTime   @default(now()) // Timestamp of comment creation
+  updatedAt DateTime   @updatedAt // Timestamp of last update
+  reactions Reaction[] // List of reactions to the comment
+}
+
+model Like {
+  id        Int      @id @default(autoincrement()) // Unique identifier for the like
+  user      User     @relation(fields: [userId], references: [id]) // The user who liked the post
+  userId    Int // Foreign key referencing the user who liked the post
+  post      Post     @relation(fields: [postId], references: [id]) // The post that was liked
+  postId    Int // Foreign key referencing the post
+  createdAt DateTime @default(now()) // Timestamp of when the like was given
+}
+
+model Reaction {
+  id        Int          @id @default(autoincrement()) // Unique identifier for the reaction
+  type      ReactionType // Type of reaction (LIKE, LOVE, WOW, etc.)
+  user      User         @relation(fields: [userId], references: [id]) // The user who reacted
+  userId    Int // Foreign key referencing the user who reacted
+  post      Post?        @relation(fields: [postId], references: [id]) // The post that was reacted to (optional)
+  postId    Int? // Foreign key referencing the post (optional)
+  comment   Comment?     @relation(fields: [commentId], references: [id]) // The comment that was reacted to (optional)
+  commentId Int? // Foreign key referencing the comment (optional)
+  createdAt DateTime     @default(now()) // Timestamp of when the reaction was given
+}
+
+enum ReactionType {
+  LIKE // Like reaction
+  LOVE // Love reaction
+  WOW // Wow reaction
+  HAHA // Haha reaction
+  SAD // Sad reaction
+  ANGRY // Angry reaction
+}
+
+model Friend {
+  id        Int          @id @default(autoincrement()) // Unique identifier for the friend relationship
+  user      User         @relation("UserFriends", fields: [userId], references: [id]) // The user who initiated the friend request
+  userId    Int // Foreign key referencing the user who initiated the friend request
+  friend    User         @relation("FriendOf", fields: [friendId], references: [id]) // The user who is the friend
+  friendId  Int // Foreign key referencing the friend
+  status    FriendStatus // Status of the friend request (PENDING, ACCEPTED, DECLINED)
+  createdAt DateTime     @default(now()) // Timestamp of when the friend request was created
+}
+
+enum FriendStatus {
+  PENDING // Friend request is pending
+  ACCEPTED // Friend request is accepted
+  DECLINED // Friend request is declined
+}
+
+model Notification {
+  id        Int                   @id @default(autoincrement()) // Unique identifier for the notification
+  message   String // Notification message
+  type      NotificationConstants // Notification type
+  user      User                  @relation(fields: [userId], references: [id]) // The user who received the notification
+  userId    Int // Foreign key referencing the user who received the notification
+  read      Boolean               @default(false) // Whether the notification has been read
+  createdAt DateTime              @default(now()) // Timestamp of when the notification was created
+}
+
+enum NotificationConstants {
+  MEMORY // MEMORY
+  TAG // TAG
+  GROUP // NOTIFICATION of the group
+  DEFAULT // DEFAULT NOTIFICATION
+  FRIENDREQUEST // FRIEND REQUEST
+  INVITE // INVITED REQUEST
+  SUBSCRIBE // NOTIFICATION OF LATEST POSTS OR STATUS FROM THE OTHERS WHO WAS SUBSCRIBED 
+}
+
+model Message {
+  id         Int      @id @default(autoincrement()) // Unique identifier for the message
+  content    String // Content of the message
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id]) // The user who sent the message
+  senderId   Int // Foreign key referencing the sender
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id]) // The user who received the message
+  receiverId Int // Foreign key referencing the receiver
+  createdAt  DateTime @default(now()) // Timestamp of when the message was sent
+  updatedAt  DateTime @updatedAt // Timestamp of last update
+}
+
+model Group {
+  id          Int               @id @default(autoincrement()) // Unique identifier for the group
+  name        String // Name of the group
+  description String // Description of the group
+  creator     User              @relation(fields: [creatorId], references: [id]) // The user who created the group
+  creatorId   Int // Foreign key referencing the creator
+  createdAt   DateTime          @default(now()) // Timestamp of when the group was created
+  updatedAt   DateTime          @updatedAt // Timestamp of last update
+  members     GroupMembership[] // List of members in the group
+  posts       Post[] // List of posts in the group
+}
+
+model GroupMembership {
+  id        Int       @id @default(autoincrement()) // Unique identifier for the group membership
+  user      User      @relation(fields: [userId], references: [id]) // The user who is a member of the group
+  userId    Int // Foreign key referencing the user
+  group     Group     @relation(fields: [groupId], references: [id]) // The group the user is a member of
+  groupId   Int // Foreign key referencing the group
+  role      GroupRole // Role of the user in the group (MEMBER, ADMIN, MODERATOR)
+  createdAt DateTime  @default(now()) // Timestamp of when the user joined the group
+}
+
+enum GroupRole {
+  MEMBER // Regular member of the group
+  ADMIN // Admin of the group
+  MODERATOR // Moderator of the group
+}
+
+model Event {
+  id        Int             @id @default(autoincrement()) // Unique identifier for the event
+  name      String // Name of the event
+  details   String // Details about the event
+  date      DateTime // Date of the event
+  creator   User            @relation(fields: [creatorId], references: [id]) // The user who created the event
+  creatorId Int // Foreign key referencing the creator
+  attendees EventAttendee[] // List of attendees of the event
+  createdAt DateTime        @default(now()) // Timestamp of when the event was created
+  updatedAt DateTime        @updatedAt // Timestamp of last update
+}
+
+model EventAttendee {
+  id        Int            @id @default(autoincrement()) // Unique identifier for the event attendee
+  user      User           @relation(fields: [userId], references: [id]) // The user who is attending the event
+  userId    Int // Foreign key referencing the user
+  event     Event          @relation(fields: [eventId], references: [id]) // The event the user is attending
+  eventId   Int // Foreign key referencing the event
+  status    AttendeeStatus // Status of the user's attendance (GOING, INTERESTED, NOT_GOING)
+  createdAt DateTime       @default(now()) // Timestamp of when the user joined the event
+}
+
+enum AttendeeStatus {
+  GOING // The user is going to the event
+  INTERESTED // The user is interested in the event
+  NOT_GOING // The user is not going to the event
+}
