@@ -115,7 +115,7 @@ const getInfoById = async (userId) => {
         const commonFriends = userInfo.friends.map((friendship) => friendship.friend);
 
         // Return the user information and common friends
-        userInfo.officialFriends = commonFriends
+        // userInfo.officialFriends = commonFriends
         return userInfo
     } catch (error) {
         console.error('Error fetching user information:', error);
@@ -130,16 +130,8 @@ const getFriendsOfUser = async (userId) => {
                 id: userId,
             },
             include: {
-                friends: {
-                    include: {
-                        friend: true,
-                    },
-                },
-                friendOf: {
-                    include: {
-                        user: true,
-                    },
-                },
+                friends: true,
+                friendOf: true,
             },
         });
 
@@ -147,18 +139,30 @@ const getFriendsOfUser = async (userId) => {
             throw new Error('User not found');
         }
 
-        // Combine friends and friendsOf, then apply the limit
-        const friends = [
-            ...userWithFriends.friends.map(friendship => friendship.friend),
-            ...userWithFriends.friendOf.map(friendship => friendship.user),
-        ].slice(0, 20);
+        // Extract friend IDs from friends and friendOf
+        const friendIds = userWithFriends.friends.map(friendship => friendship.friendId);
+        const friendOfIds = userWithFriends.friendOf.map(friendship => friendship.userId);
 
-        return friends;
+        // Find mutual friends (intersection of friendIds and friendOfIds)
+        const mutualFriendIds = friendIds.filter(id => friendOfIds.includes(id));
+
+        // Fetch mutual friends
+        const mutualFriends = await prisma.user.findMany({
+            where: {
+                id: {
+                    in: mutualFriendIds,
+                },
+            },
+            take: 20,
+        });
+
+        return mutualFriends;
     } catch (error) {
-        console.error('Error fetching friends:', error);
+        console.error('Error fetching mutual friends:', error);
         throw error;
     }
 };
+
 
 const getUsersNotInFriendsList = async (userId) => {
     try {
@@ -188,7 +192,6 @@ const getUsersNotInFriendsList = async (userId) => {
         // Extract friends' IDs
         const friendIds = [
             ...userWithFriends.friends.map(friendship => friendship.friendId),
-            ...userWithFriends.friendOf.map(friendship => friendship.userId),
         ];
 
         // Fetch users who are not in the friends list and not the user himself
@@ -246,6 +249,54 @@ const toggleAddFriendRequest = async (userId, friendId) => {
     }
 };
 
+const getFriendRequests = async (userId) => {
+    try {
+        const userWithFriends = await prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+            include: {
+                friends: true,
+                friendOf: true,
+            },
+        });
+
+        if (!userWithFriends) {
+            throw new Error('User not found');
+        }
+
+        // Extract friend IDs from friends and friendOf
+        const friendIds = userWithFriends.friends.map(friendship => friendship.friendId);
+        const friendOfIds = userWithFriends.friendOf.map(friendship => friendship.userId);
+
+        // Find friend requests (items in friendOf but not in friends)
+        const friendRequestsIds = friendOfIds.filter(id => !friendIds.includes(id));
+
+        // Fetch friend requests
+        const friendRequests = await prisma.user.findMany({
+            where: {
+                id: {
+                    in: friendRequestsIds,
+                },
+            },
+            take: 20,
+            orderBy: {
+                createdAt: 'desc' // Assuming createdAt is the attribute indicating when the friend request was made
+            }
+        });
+
+        return friendRequests;
+    } catch (error) {
+        console.error('Error fetching friend requests:', error);
+        throw error;
+    }
+};
 
 
-module.exports = { registerUser, loginUser, getFriendsOfUser, getUsersNotInFriendsList, getInfoById, toggleAddFriendRequest };
+
+
+module.exports = {
+    registerUser, loginUser, getFriendsOfUser,
+    getUsersNotInFriendsList, getInfoById, toggleAddFriendRequest,
+    getFriendRequests
+};
