@@ -46,6 +46,7 @@ The Facebook Clone Project follows a standardized error code system for better e
 - **#EC:  2**: Invalid input
 - **#EC: -1**: Existed record
 - **#EC: -2**: Internal server error
+- **#EC: -3**: Not existed record
 
 ## Configuration
 

@@ -7,12 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ====> remember to go to db to change profilePic datatype to TEXT
 model User {
   id               Int               @id @default(autoincrement()) // Unique identifier for the user
   name             String // User's name
   email            String            @unique // User's email, must be unique
   password         String // User's password
-  profilePic       String? // Optional profile picture URL
+  profilePic       String?           @db.VarChar(1000) // Optional profile picture URL
   bio              String? // Optional user bio
   posts            Post[] // List of posts created by the user
   comments         Comment[] // List of comments made by the user

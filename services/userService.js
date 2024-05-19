@@ -1,4 +1,5 @@
 // userService.js
+require('dotenv').config()
 
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
@@ -29,6 +30,7 @@ const registerUser = async (email, password, name) => {
                 email,
                 name,
                 password: hashedPassword,
+                profilePic: process.env.DEFAULT_AVATAR
             },
         });
 
@@ -67,7 +69,7 @@ const loginUser = async (email, password) => {
         const token = jwt.sign({ userId: user.id }, process.env.JWT_KEY);
 
         // Return success response with token
-        return { EC: 0, token, email: user.email, name: user.name, image: user.image, id: user.id };
+        return { EC: 0, token, email: user.email, name: user.name, image: user.profilePic, id: user.id };
     } catch (error) {
         // Handle errors
         console.error(error);
@@ -292,11 +294,35 @@ const getFriendRequests = async (userId) => {
     }
 };
 
+const editUserAvatar = async (userId, image) => {
+    try {
+        if (!userId || !image) return { EC: 1, message: "Missing userId or image." };
+
+        // Check if the user exists
+        const existingUser = await prisma.user.findUnique({ where: { id: userId } });
+        if (!existingUser) {
+            // Handle if the user does not exist (create a new user or return an error)
+            return { EC: -3, message: "User not found." };
+        }
+
+        // Update the user's profile picture with the new image URL
+        await prisma.user.update({
+            where: { id: userId },
+            data: { profilePic: image }
+        });
+
+        return { EC: 0, message: "Profile picture updated successfully." };
+    } catch (error) {
+        // Handle errors
+        console.error(error);
+        return { EC: -2, message: "Failed to update profile picture." };
+    }
+};
 
 
 
 module.exports = {
     registerUser, loginUser, getFriendsOfUser,
     getUsersNotInFriendsList, getInfoById, toggleAddFriendRequest,
-    getFriendRequests
+    getFriendRequests, editUserAvatar
 };
