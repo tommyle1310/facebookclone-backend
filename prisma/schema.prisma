@@ -13,7 +13,7 @@ model User {
   name             String // User's name
   email            String            @unique // User's email, must be unique
   password         String // User's password
-  profilePic       String?           @db.VarChar(1000) // Optional profile picture URL
+  profilePic       String? // Optional profile picture URL
   bio              String? // Optional user bio
   posts            Post[] // List of posts created by the user
   comments         Comment[] // List of comments made by the user
@@ -114,16 +114,30 @@ model Notification {
   userId    Int // Foreign key referencing the user who received the notification
   read      Boolean           @default(false) // Whether the notification has been read
   createdAt DateTime          @default(now()) // Timestamp of when the notification was created
+
+  // Polymorphic relation fields
+  fromId   Int // ID of the source (User, Group, Event, Post, etc.)
+  fromType SourceType // Type of the source (User, Group, Event, Post, etc.)
 }
 
 enum NotificationTypes {
-  MEMORY // MEMORY
-  TAG // TAG
-  GROUP // NOTIFICATION of the group
-  DEFAULT // DEFAULT NOTIFICATION
-  FRIENDREQUEST // FRIEND REQUEST
-  INVITE // INVITED REQUEST
-  SUBSCRIBE // NOTIFICATION OF LATEST POSTS OR STATUS FROM THE OTHERS WHO WAS SUBSCRIBED 
+  MEMORY // Notification for memory posts
+  TAG // Notification for being tagged
+  IS_LIVESTREAMING // Notification when someone is livestreaming
+  FRIEND_ACCEPT // Notification when a friend request is accepted
+  GROUP_POST // Notification for new group posts
+  DEFAULT // Generic notification
+  FRIEND_REQUEST // Notification for new friend requests
+  GROUP_INVITE // Notification for group invitations
+  EVENT_INVITE // Notification for event invitations
+  SUBSCRIBE_POST // Notification for new posts from subscribed users or pages
+}
+
+enum SourceType {
+  USER // Source is a User
+  GROUP // Source is a Group
+  EVENT // Source is an Event
+  POST // Source is a Post
 }
 
 model Message {

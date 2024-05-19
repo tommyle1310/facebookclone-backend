@@ -2,11 +2,12 @@ require('dotenv').config()
 const express = require('express')
 const { getFriendsOfUser, getUsersNotInFriendsList,
     getInfoById, toggleAddFriendRequest,
-    getFriendRequests, editUserAvatar } = require('../controller/userController')
+    getFriendRequests, editUserAvatar, getAvatar } = require('../controller/userController')
 
 const router = express.Router()
 
 router.get('/users/:userId/friends', getFriendsOfUser);
+router.get('/users/:userId/avatar', getAvatar);
 router.get('/users/:userId/non-friends', getUsersNotInFriendsList);
 router.get('/users/:userId/friend-requests', getFriendRequests);
 router.get('/users/:userId', getInfoById);

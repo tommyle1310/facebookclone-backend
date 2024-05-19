@@ -1,7 +1,7 @@
 // userService.js
 require('dotenv').config()
 
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient, SourceType, NotificationTypes } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
@@ -215,6 +215,7 @@ const getUsersNotInFriendsList = async (userId) => {
 
 const toggleAddFriendRequest = async (userId, friendId) => {
     try {
+        const fromUser = await prisma.user.findUnique({ where: { id: userId } })
         await prisma.$transaction(async (tx) => {
             // Check if the friend request already exists
             const existingFriendship = await tx.friend.findFirst({
@@ -231,6 +232,17 @@ const toggleAddFriendRequest = async (userId, friendId) => {
                         id: existingFriendship.id,
                     },
                 });
+
+                // Create a notification for friend request removal
+                await tx.notification.create({
+                    data: {
+                        message: `Friend request from user ID ${userId} has been canceled.`,
+                        type: NotificationTypes.FRIEND_REQUEST,
+                        userId: friendId,
+                        fromId: friendId,
+                        fromType: SourceType.USER
+                    },
+                });
             } else {
                 // If the friend request does not exist, add it
                 await tx.friend.create({
@@ -238,6 +250,18 @@ const toggleAddFriendRequest = async (userId, friendId) => {
                         userId,
                         friendId,
                         status: 'PENDING', // Assuming the default status is PENDING
+                    },
+                });
+
+                // Create a notification for new friend request
+                let message = ''
+                await tx.notification.create({
+                    data: {
+                        message: `sent you a friend request.`,
+                        type: NotificationTypes.FRIEND_REQUEST,
+                        userId: friendId,
+                        fromId: fromUser.id,
+                        fromType: SourceType.USER
                     },
                 });
             }
@@ -250,6 +274,7 @@ const toggleAddFriendRequest = async (userId, friendId) => {
         return { EC: -2, EM: 'Internal server error' };
     }
 };
+
 
 const getFriendRequests = async (userId) => {
     try {
@@ -297,7 +322,6 @@ const getFriendRequests = async (userId) => {
 const editUserAvatar = async (userId, image) => {
     try {
         if (!userId || !image) return { EC: 1, message: "Missing userId or image." };
-
         // Check if the user exists
         const existingUser = await prisma.user.findUnique({ where: { id: userId } });
         if (!existingUser) {
@@ -319,10 +343,29 @@ const editUserAvatar = async (userId, image) => {
     }
 };
 
+const getAvatar = async (userId) => {
+    try {
+        // Fetch the user by ID including required information
+        const userInfo = await prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+        });
+
+        // Check if the user exists
+        if (!userInfo) {
+            throw new Error('User not found');
+        }
+        return userInfo.profilePic
+    } catch (error) {
+        console.error('Error fetching user information:', error);
+        throw error;
+    }
+};
 
 
 module.exports = {
     registerUser, loginUser, getFriendsOfUser,
     getUsersNotInFriendsList, getInfoById, toggleAddFriendRequest,
-    getFriendRequests, editUserAvatar
+    getFriendRequests, editUserAvatar, getAvatar
 };

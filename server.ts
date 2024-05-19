@@ -10,6 +10,11 @@ const { authenticateJWT } = require('./middlewares/authMiddleware')
 
 
 const app = express();
+// Increase the size limit for JSON payloads
+app.use(express.json({ limit: '50mb' }));
+
+// Increase the size limit for URL-encoded payloads
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
 app.use(bodyParser.json())
 app.use(authRoutes)

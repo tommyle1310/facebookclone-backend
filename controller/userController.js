@@ -89,8 +89,20 @@ const editUserAvatar = async (req, res) => {
     }
 }
 
+const getAvatar = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const result = await userService.getAvatar(+userId);
+        res.status(200).json(result);
+    } catch (error) {
+        // Send error response
+        res.status(error.code || 500).json({ error: error.message });
+    }
+}
+
+
 module.exports = {
     registerUser, loginUser, getFriendsOfUser,
     getUsersNotInFriendsList, getInfoById, toggleAddFriendRequest,
-    getFriendRequests, editUserAvatar
+    getFriendRequests, editUserAvatar, getAvatar
 };
