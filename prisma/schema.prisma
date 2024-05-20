@@ -13,7 +13,7 @@ model User {
   name             String // User's name
   email            String            @unique // User's email, must be unique
   password         String // User's password
-  profilePic       String? // Optional profile picture URL
+  profilePic       String?           @db.LongText // Optional profile picture URL
   bio              String? // Optional user bio
   posts            Post[] // List of posts created by the user
   comments         Comment[] // List of comments made by the user
@@ -33,19 +33,26 @@ model User {
 }
 
 model Post {
-  id        Int        @id @default(autoincrement()) // Unique identifier for the post
-  content   String? // Optional text content for the post
-  imageUrl  String? // Optional image URL for the post
-  videoUrl  String? // Optional video URL for the post
-  author    User       @relation(fields: [authorId], references: [id]) // The user who created the post
-  authorId  Int // Foreign key referencing the user who created the post
-  comments  Comment[] // List of comments on the post
-  likes     Like[] // List of likes on the post
-  createdAt DateTime   @default(now()) // Timestamp of post creation
-  updatedAt DateTime   @updatedAt // Timestamp of last update
-  reactions Reaction[] // List of reactions to the post
-  Group     Group?     @relation(fields: [groupId], references: [id])
-  groupId   Int?
+  id           Int          @id @default(autoincrement()) // Unique identifier for the post
+  content      String? // Optional text content for the post
+  imageUrl     String?      @db.LongText // Optional image URL for the post
+  videoUrl     String?      @db.LongText // Optional video URL for the post
+  author       User         @relation(fields: [authorId], references: [id]) // The user who created the post
+  authorId     Int // Foreign key referencing the user who created the post
+  comments     Comment[] // List of comments on the post
+  likes        Like[] // List of likes on the post
+  createdAt    DateTime     @default(now()) // Timestamp of post creation
+  updatedAt    DateTime     @updatedAt // Timestamp of last update
+  reactions    Reaction[] // List of reactions to the post
+  Group        Group?       @relation(fields: [groupId], references: [id])
+  groupId      Int?
+  publicStatus PublicStatus @default(PUBLIC) // Public status of the post
+}
+
+enum PublicStatus {
+  PRIVATE
+  PUBLIC
+  FRIENDS
 }
 
 model Comment {
@@ -53,6 +60,8 @@ model Comment {
   content   String // Text content of the comment
   author    User       @relation(fields: [authorId], references: [id]) // The user who made the comment
   authorId  Int // Foreign key referencing the user who made the comment
+  imageUrl  String?    @db.LongText
+  videoUrl  String?    @db.LongText
   post      Post       @relation(fields: [postId], references: [id]) // The post the comment is related to
   postId    Int // Foreign key referencing the post
   createdAt DateTime   @default(now()) // Timestamp of comment creation
@@ -143,6 +152,8 @@ enum SourceType {
 model Message {
   id         Int      @id @default(autoincrement()) // Unique identifier for the message
   content    String // Content of the message
+  imageUrl   String?  @db.LongText
+  videoUrl   String?  @db.LongText
   sender     User     @relation("SentMessages", fields: [senderId], references: [id]) // The user who sent the message
   senderId   Int // Foreign key referencing the sender
   receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id]) // The user who received the message
@@ -155,6 +166,7 @@ model Group {
   id          Int               @id @default(autoincrement()) // Unique identifier for the group
   name        String // Name of the group
   description String // Description of the group
+  imageUrl    String?           @db.LongText
   creator     User              @relation(fields: [creatorId], references: [id]) // The user who created the group
   creatorId   Int // Foreign key referencing the creator
   createdAt   DateTime          @default(now()) // Timestamp of when the group was created
@@ -184,6 +196,7 @@ model Event {
   name      String // Name of the event
   details   String // Details about the event
   date      DateTime // Date of the event
+  imagUrl   String?         @db.LongText
   creator   User            @relation(fields: [creatorId], references: [id]) // The user who created the event
   creatorId Int // Foreign key referencing the creator
   attendees EventAttendee[] // List of attendees of the event

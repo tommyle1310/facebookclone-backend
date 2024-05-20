@@ -1,7 +1,7 @@
 // userService.js
 require('dotenv').config()
 
-const { PrismaClient, SourceType, NotificationTypes } = require('@prisma/client');
+const { PrismaClient, SourceType, NotificationTypes, FriendStatus } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
@@ -56,7 +56,7 @@ const loginUser = async (email, password) => {
         // Find the user by email
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
-            return { EC: 2, EM: "Invalid email or password" };
+            return { EC: -3, EM: "User not found" };
         }
 
         // Compare the provided password with the stored password
@@ -132,39 +132,50 @@ const getFriendsOfUser = async (userId) => {
                 id: userId,
             },
             include: {
-                friends: true,
-                friendOf: true,
+                friends: {
+                    where: {
+                        status: 'ACCEPTED',
+                    },
+                },
+                friendOf: {
+                    where: {
+                        status: 'ACCEPTED',
+                    },
+                },
             },
         });
 
         if (!userWithFriends) {
-            throw new Error('User not found');
+            return { EC: -3, EM: "No user was found" };
+
         }
 
-        // Extract friend IDs from friends and friendOf
-        const friendIds = userWithFriends.friends.map(friendship => friendship.friendId);
-        const friendOfIds = userWithFriends.friendOf.map(friendship => friendship.userId);
+        // Extract accepted friend IDs from friends and friendOf
+        const acceptedFriendIds = userWithFriends.friends.map(friendship => friendship.friendId);
+        const acceptedFriendOfIds = userWithFriends.friendOf.map(friendship => friendship.userId);
 
-        // Find mutual friends (intersection of friendIds and friendOfIds)
-        const mutualFriendIds = friendIds.filter(id => friendOfIds.includes(id));
+        // Find mutual friends (intersection of acceptedFriendIds and acceptedFriendOfIds)
+        const mutualFriendIds = acceptedFriendIds.filter(id => acceptedFriendOfIds.includes(id));
 
-        // Fetch mutual friends
-        const mutualFriends = await prisma.user.findMany({
+        // Fetch all friends with status ACCEPTED (both mutual and non-mutual)
+        const allAcceptedFriendIds = [...new Set([...acceptedFriendIds, ...acceptedFriendOfIds])];
+
+        // Fetch details of these friends
+        const acceptedFriends = await prisma.user.findMany({
             where: {
                 id: {
-                    in: mutualFriendIds,
+                    in: allAcceptedFriendIds,
                 },
             },
             take: 20,
         });
 
-        return mutualFriends;
+        return acceptedFriends;
     } catch (error) {
-        console.error('Error fetching mutual friends:', error);
+        console.error('Error fetching accepted friends:', error);
         throw error;
     }
 };
-
 
 const getUsersNotInFriendsList = async (userId) => {
     try {
@@ -275,6 +286,93 @@ const toggleAddFriendRequest = async (userId, friendId) => {
     }
 };
 
+const acceptFriendRequest = async (userId, friendId) => {
+    try {
+        // Fetch the friend request that needs to be accepted
+        const friendRequest = await prisma.friend.findFirst({
+            where: {
+                userId: friendId,
+                friendId: userId,
+                status: 'PENDING' // Assuming FriendStatus.PENDING resolves to the string 'PENDING'
+            },
+        });
+
+        if (!friendRequest) {
+            return { EC: -1, EM: 'No pending friend request found' };
+        }
+
+        // Fetch the user and friend data
+        const [user, friend] = await Promise.all([
+            prisma.user.findUnique({ where: { id: userId } }),
+            prisma.user.findUnique({ where: { id: friendId } })
+        ]);
+
+        if (!user || !friend) {
+            return { EC: -1, EM: 'User or friend not found' };
+        }
+
+        // Start a transaction
+        await prisma.$transaction(async (tx) => {
+            // Update the friend request status to ACCEPTED
+            await tx.friend.update({
+                where: {
+                    id: friendRequest.id
+                },
+                data: {
+                    status: 'ACCEPTED' // Assuming FriendStatus.ACCEPTED resolves to the string 'ACCEPTED'
+                },
+            });
+
+            // Check if the reverse friend entry exists
+            const reverseFriendRequest = await tx.friend.findFirst({
+                where: {
+                    userId: userId,
+                    friendId: friendId,
+                    status: 'ACCEPTED'
+                },
+            });
+
+            // If reverse friend entry doesn't exist, create one
+            if (!reverseFriendRequest) {
+                await tx.friend.create({
+                    data: {
+                        userId: userId,
+                        friendId: friendId,
+                        status: 'ACCEPTED'
+                    },
+                });
+            }
+
+            // Create notifications for both users
+            await tx.notification.createMany({
+                data: [
+                    {
+                        message: `You have accepted ${friend.name}'s friend request.`,
+                        type: 'FRIEND_ACCEPT', // Assuming NotificationTypes.FRIEND_ACCEPT resolves to the string 'FRIEND_ACCEPT'
+                        userId: userId,
+                        fromId: friendId,
+                        fromType: 'USER' // Assuming SourceType.USER resolves to the string 'USER'
+                    },
+                    {
+                        message: `${user.name} has accepted your friend request.`,
+                        type: 'FRIEND_ACCEPT', // Assuming NotificationTypes.FRIEND_ACCEPT resolves to the string 'FRIEND_ACCEPT'
+                        userId: friendId,
+                        fromId: userId,
+                        fromType: 'USER' // Assuming SourceType.USER resolves to the string 'USER'
+                    }
+                ]
+            });
+        });
+
+        return { EC: 0, EM: 'Friend request accepted successfully' };
+    } catch (error) {
+        // Handle errors
+        console.error(error);
+        return { EC: -2, EM: 'Internal server error' };
+    }
+};
+
+
 
 const getFriendRequests = async (userId) => {
     try {
@@ -367,5 +465,6 @@ const getAvatar = async (userId) => {
 module.exports = {
     registerUser, loginUser, getFriendsOfUser,
     getUsersNotInFriendsList, getInfoById, toggleAddFriendRequest,
-    getFriendRequests, editUserAvatar, getAvatar
+    getFriendRequests, editUserAvatar, getAvatar,
+    acceptFriendRequest
 };

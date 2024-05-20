@@ -4,6 +4,7 @@ const bodyParser = require('body-parser')
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes')
 const userRoutes = require('./routes/userRoutes')
+const postRoutes = require('./routes/postRoutes')
 const PORT = process.env.PORT || 8080 || 8081 || 8082 || 8083;
 const { authenticateJWT } = require('./middlewares/authMiddleware')
 
@@ -19,6 +20,7 @@ app.use(cors());
 app.use(bodyParser.json())
 app.use(authRoutes)
 app.use(userRoutes)
+app.use(postRoutes)
 
 // Define your routes and middleware here
 
