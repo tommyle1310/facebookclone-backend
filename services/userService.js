@@ -227,6 +227,14 @@ const getUsersNotInFriendsList = async (userId) => {
 const toggleAddFriendRequest = async (userId, friendId) => {
     try {
         const fromUser = await prisma.user.findUnique({ where: { id: userId } })
+        const [user, friend] = await Promise.all([
+            prisma.user.findUnique({ where: { id: userId } }),
+            prisma.user.findUnique({ where: { id: friendId } })
+        ]);
+
+        if (!user || !friend) {
+            return { EC: -1, EM: 'User or friend not found' };
+        }
         await prisma.$transaction(async (tx) => {
             // Check if the friend request already exists
             const existingFriendship = await tx.friend.findFirst({
@@ -244,16 +252,8 @@ const toggleAddFriendRequest = async (userId, friendId) => {
                     },
                 });
 
-                // Create a notification for friend request removal
-                await tx.notification.create({
-                    data: {
-                        message: `Friend request from user ID ${userId} has been canceled.`,
-                        type: NotificationTypes.FRIEND_REQUEST,
-                        userId: friendId,
-                        fromId: friendId,
-                        fromType: SourceType.USER
-                    },
-                });
+
+
             } else {
                 // If the friend request does not exist, add it
                 await tx.friend.create({
@@ -268,7 +268,7 @@ const toggleAddFriendRequest = async (userId, friendId) => {
                 let message = ''
                 await tx.notification.create({
                     data: {
-                        message: `sent you a friend request.`,
+                        message: `${friend.name} sent you a friend request.`,
                         type: NotificationTypes.FRIEND_REQUEST,
                         userId: friendId,
                         fromId: fromUser.id,
@@ -343,6 +343,24 @@ const acceptFriendRequest = async (userId, friendId) => {
                 });
             }
 
+            // Find the notification to delete
+            const findNotification = await tx.notification.findFirst({
+                where: {
+                    type: 'FRIEND_REQUEST',
+                    fromType: 'USER',
+                    userId: userId,
+                    fromId: friendId,
+                }
+            });
+
+            if (findNotification) {
+                await tx.notification.delete({
+                    where: {
+                        id: findNotification.id
+                    }
+                });
+            }
+
             // Create notifications for both users
             await tx.notification.createMany({
                 data: [
@@ -371,6 +389,7 @@ const acceptFriendRequest = async (userId, friendId) => {
         return { EC: -2, EM: 'Internal server error' };
     }
 };
+
 
 
 

@@ -132,6 +132,7 @@ model Notification {
 enum NotificationTypes {
   MEMORY // Notification for memory posts
   TAG // Notification for being tagged
+  POST_LIKE // Notification someone likes post
   IS_LIVESTREAMING // Notification when someone is livestreaming
   FRIEND_ACCEPT // Notification when a friend request is accepted
   GROUP_POST // Notification for new group posts

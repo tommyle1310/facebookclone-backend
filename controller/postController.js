@@ -15,8 +15,18 @@ const createPost = async (req, res) => {
 const getAllPosts = async (req, res) => {
     try {
         const { userId } = req.params;
-        console.log('idd:', userId);
         const result = await postService.getAllPosts(+userId);
+        res.status(200).json(result);
+    } catch (error) {
+        // Send error response
+        res.status(500).json(error);
+    }
+};
+
+const toggleLikePost = async (req, res) => {
+    try {
+        const { userId, postId } = req.body;
+        const result = await postService.toggleLikePost(userId, postId);
         res.status(200).json(result);
     } catch (error) {
         // Send error response
@@ -26,5 +36,5 @@ const getAllPosts = async (req, res) => {
 
 
 module.exports = {
-    createPost, getAllPosts
+    createPost, getAllPosts, toggleLikePost
 };
