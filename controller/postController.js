@@ -34,7 +34,18 @@ const toggleLikePost = async (req, res) => {
     }
 };
 
+const getLikedPosts = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const result = await postService.getLikedPosts(+userId);
+        res.status(200).json(result);
+    } catch (error) {
+        // Send error response
+        res.status(500).json(error);
+    }
+};
 
 module.exports = {
-    createPost, getAllPosts, toggleLikePost
+    createPost, getAllPosts, toggleLikePost,
+    getLikedPosts
 };

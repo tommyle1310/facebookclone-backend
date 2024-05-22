@@ -71,6 +71,7 @@ const getAllPosts = async (userId) => {
             skip: 0,
             include: {
                 author: true, // To get the author details for checking friends
+                likes: true
             },
         });
 
@@ -89,7 +90,7 @@ const getAllPosts = async (userId) => {
             return false;
         });
 
-        return filteredPosts;
+        return { EC: 0, EM: 'Get all fitlered posts successfully', data: filteredPosts };
     } catch (error) {
         console.error('Error fetching posts:', error);
         throw error;
@@ -99,6 +100,7 @@ const getAllPosts = async (userId) => {
 
 const toggleLikePost = async (userId, postId) => {
     try {
+        console.log('uid;', userId, 'pid:', postId);
         // Find the user who is liking/unliking the post
         const fromUser = await prisma.user.findUnique({ where: { id: userId } });
 
@@ -126,7 +128,15 @@ const toggleLikePost = async (userId, postId) => {
                     },
                 });
 
-                // Do not send any notification for unliking the post
+                // Delete the corresponding notification
+                await tx.notification.deleteMany({
+                    where: {
+                        type: NotificationTypes.POST_LIKE,
+                        userId: existingLike.post.authorId,
+                        fromId: userId,
+                        fromType: SourceType.USER,
+                    },
+                });
             } else {
                 // If the like does not exist, add it (like the post)
                 const newLike = await tx.like.create({
@@ -139,17 +149,20 @@ const toggleLikePost = async (userId, postId) => {
                     },
                 });
 
-                // Create a notification for liking the post
-                await tx.notification.create({
-                    data: {
-                        message: `${fromUser.name} liked your post.`,
-                        type: NotificationTypes.POST_LIKE,
-                        userId: newLike.post.authorId, // The author of the post
-                        fromId: fromUser.id,
-                        fromType: SourceType.USER
-                    },
-                });
+                // Only create a notification if the liker is not the author of the post
+                if (userId !== newLike.post.authorId) {
+                    await tx.notification.create({
+                        data: {
+                            message: `${fromUser.name} liked your post.`,
+                            type: NotificationTypes.POST_LIKE,
+                            userId: newLike.post.authorId, // The author of the post
+                            fromId: fromUser.id,
+                            fromType: SourceType.USER,
+                        },
+                    });
+                }
             }
+            return { EC: 0, EM: 'Post liked successfully' };
         });
 
         return { EC: 0, EM: 'Post like toggled successfully' };
@@ -160,7 +173,36 @@ const toggleLikePost = async (userId, postId) => {
     }
 };
 
+const getLikedPosts = async (userId) => {
+    try {
+
+        const fromUser = await prisma.user.findUnique({ where: { id: userId } });
+
+        if (!fromUser) {
+            return { EC: -1, EM: 'User not found' };
+        }
+        const likedPosts = await prisma.like.findMany({
+            where: {
+                userId: userId
+            },
+            include: {
+                post: true
+            }
+        })
+        return {
+            EC: 0,
+            EM: 'Get liked posts successfully',
+            data: likedPosts
+        }
+    } catch (error) {
+        // Handle errors
+        console.error(error);
+        return { EC: -2, EM: 'Internal server error' };
+    }
+}
+
 
 module.exports = {
-    createPost, getAllPosts, toggleLikePost
+    createPost, getAllPosts, toggleLikePost,
+    getLikedPosts
 };
