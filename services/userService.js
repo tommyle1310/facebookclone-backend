@@ -268,7 +268,7 @@ const toggleAddFriendRequest = async (userId, friendId) => {
                 let message = ''
                 await tx.notification.create({
                     data: {
-                        message: `${friend.name} sent you a friend request.`,
+                        message: `${user.name} sent you a friend request.`,
                         type: NotificationTypes.FRIEND_REQUEST,
                         userId: friendId,
                         fromId: fromUser.id,

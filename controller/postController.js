@@ -23,6 +23,17 @@ const getAllPosts = async (req, res) => {
     }
 };
 
+const getUserPosts = async (req, res) => {
+    try {
+        const { userId, viewerId } = req.params;
+        const result = await postService.getUserPosts(+userId, +viewerId);
+        res.status(200).json(result);
+    } catch (error) {
+        // Send error response
+        res.status(500).json(error);
+    }
+};
+
 const toggleLikePost = async (req, res) => {
     try {
         const { userId, postId } = req.body;
@@ -69,5 +80,6 @@ const getPostComments = async (req, res) => {
 
 module.exports = {
     createPost, getAllPosts, toggleLikePost,
-    getLikedPosts, addCommentToPost, getPostComments
+    getLikedPosts, addCommentToPost, getPostComments,
+    getUserPosts
 };

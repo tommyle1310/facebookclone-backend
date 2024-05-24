@@ -103,6 +103,65 @@ const getAllPosts = async (userId) => {
     }
 };
 
+const getUserPosts = async (userId, viewerId) => {
+    try {
+        // Check if the user exists
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+        });
+
+        const viewer = await prisma.user.findUnique({
+            where: { id: viewerId },
+        });
+
+        if (!user || !viewer) {
+            return { EC: -3, EM: "No user was found" };
+        }
+
+        // Fetch posts where authorId matches the userId
+        const posts = await prisma.post.findMany({
+            where: {
+                authorId: userId,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+            include: {
+                author: true, // To get the author details
+                likes: true,
+                comments: {
+                    include: {
+                        author: true,
+                        post: true,
+                    },
+                },
+            },
+        });
+
+        // Filter posts based on visibility rules
+        const filteredPosts = posts.filter(post => {
+            if (post.publicStatus === 'PUBLIC') {
+                return true;
+            }
+            if (post.publicStatus === 'FRIENDS') {
+
+                return acceptedFriendOfIds.includes(post.authorId) || post.authorId === viewerId;
+            }
+            if (post.publicStatus === 'PRIVATE') {
+                return post.authorId === viewerId;
+            }
+            return false;
+        });
+
+
+        return { EC: 0, EM: 'Get all posts by user successfully', data: filteredPosts };
+    } catch (error) {
+        console.error('Error fetching posts:', error);
+        throw error;
+    }
+};
+
+
 
 const toggleLikePost = async (userId, postId) => {
     try {
@@ -290,5 +349,6 @@ const getPostComments = async (postId) => {
 
 module.exports = {
     createPost, getAllPosts, toggleLikePost,
-    getLikedPosts, addCommentToPost, getPostComments
+    getLikedPosts, addCommentToPost, getPostComments,
+    getUserPosts
 };
