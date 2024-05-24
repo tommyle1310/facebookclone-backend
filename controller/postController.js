@@ -45,7 +45,29 @@ const getLikedPosts = async (req, res) => {
     }
 };
 
+const addCommentToPost = async (req, res) => {
+    try {
+        const { userId, postId, commentData } = req.body;
+        const result = await postService.addCommentToPost(userId, postId, commentData);
+        res.status(200).json(result);
+    } catch (error) {
+        // Send error response
+        res.status(500).json(error);
+    }
+};
+
+const getPostComments = async (req, res) => {
+    try {
+        const { postId } = req.params;
+        const result = await postService.getPostComments(+postId);
+        res.status(200).json(result);
+    } catch (error) {
+        // Send error response
+        res.status(500).json(error);
+    }
+};
+
 module.exports = {
     createPost, getAllPosts, toggleLikePost,
-    getLikedPosts
+    getLikedPosts, addCommentToPost, getPostComments
 };

@@ -71,7 +71,13 @@ const getAllPosts = async (userId) => {
             skip: 0,
             include: {
                 author: true, // To get the author details for checking friends
-                likes: true
+                likes: true,
+                comments: {
+                    include: {
+                        author: true,
+                        post: true,
+                    }
+                }
             },
         });
 
@@ -100,7 +106,6 @@ const getAllPosts = async (userId) => {
 
 const toggleLikePost = async (userId, postId) => {
     try {
-        console.log('uid;', userId, 'pid:', postId);
         // Find the user who is liking/unliking the post
         const fromUser = await prisma.user.findUnique({ where: { id: userId } });
 
@@ -201,8 +206,89 @@ const getLikedPosts = async (userId) => {
     }
 }
 
+const addCommentToPost = async (userId, postId, commentData) => {
+    try {
+        // Find the user who is adding the comment
+        const fromUser = await prisma.user.findUnique({ where: { id: userId } });
+
+        if (!fromUser) {
+            return { EC: -1, EM: 'User not found' };
+        }
+
+        // Find the post to which the comment is being added
+        const post = await prisma.post.findUnique({ where: { id: postId } });
+
+        if (!post) {
+            return { EC: -1, EM: 'Post not found' };
+        }
+
+        // Add the comment
+        const newComment = await prisma.comment.create({
+            data: {
+                content: commentData.content,
+                imageUrl: commentData.imageUrl,
+                videoUrl: commentData.videoUrl,
+                authorId: userId,
+                postId: postId,
+            },
+            include: {
+                post: true, // Include the post details to get the authorId
+            },
+        });
+
+        // Notify the post author (if the author is not the commenter)
+        if (userId !== post.authorId) {
+            await prisma.notification.create({
+                data: {
+                    message: `${fromUser.name} commented on your post.`,
+                    type: NotificationTypes.POST_COMMENT,
+                    userId: post.authorId, // The author of the post
+                    fromId: fromUser.id,
+                    fromType: SourceType.USER,
+                },
+            });
+        }
+
+        return { EC: 0, EM: 'Comment added successfully', data: newComment };
+    } catch (error) {
+        // Handle errors
+        console.error(error);
+        return { EC: -2, EM: 'Internal server error' };
+    }
+};
+
+const getPostComments = async (postId) => {
+    try {
+        // Retrieve the post based on the postId
+        const post = await prisma.post.findUnique({ where: { id: postId } });
+
+        // Check if the post exists
+        if (!post) {
+            return { EC: -1, EM: 'Post not found' };
+        }
+
+        // Retrieve comments for the post
+        const comments = await prisma.comment.findMany({
+            where: {
+                postId: postId
+            }
+        });
+
+        // Return the comments
+        return {
+            EC: 0,
+            EM: 'Get post comments successfully',
+            data: comments
+        };
+    } catch (error) {
+        // Handle errors
+        console.error(error);
+        return { EC: -2, EM: 'Internal server error' };
+    }
+};
+
 
 module.exports = {
     createPost, getAllPosts, toggleLikePost,
-    getLikedPosts
+    getLikedPosts, addCommentToPost, getPostComments
 };

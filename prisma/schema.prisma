@@ -136,6 +136,7 @@ enum NotificationTypes {
   IS_LIVESTREAMING // Notification when someone is livestreaming
   FRIEND_ACCEPT // Notification when a friend request is accepted
   GROUP_POST // Notification for new group posts
+  POST_COMMENT //notification of someone commented on your post
   DEFAULT // Generic notification
   FRIEND_REQUEST // Notification for new friend requests
   GROUP_INVITE // Notification for group invitations
