@@ -6,6 +6,7 @@
         "lib": [
             "esnext"
         ],
-        "esModuleInterop": false
+        "esModuleInterop": true, // Change this to true
+        "skipLibCheck": true // This is optional but can improve build times
     }
 }
