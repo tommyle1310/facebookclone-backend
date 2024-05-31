@@ -7,6 +7,7 @@ const { Server } = require('socket.io');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const postRoutes = require('./routes/postRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 const { authenticateJWT } = require('./middlewares/authMiddleware');
 const { PrismaClient, SourceType, NotificationTypes, FriendStatus } = require('@prisma/client');
 
@@ -38,12 +39,14 @@ app.use(bodyParser.json());
 app.use(authRoutes);
 app.use(userRoutes);
 app.use(postRoutes);
+app.use(chatRoutes);
 
 // Define your routes and middleware here
 
 // Handle Socket.IO connections
 io.on('connection', async (socket: any) => {
-    console.log('A user connected:', socket.id);
+    // console.log('A user connected:', socket.id);
+    console.log('check userassaoudbasodubasofboafbofdooi', socket.handshake.query.userId);
 
     // Extract userId from socket handshake query or other auth mechanism
     const userId = Number(socket.handshake.query.userId);
@@ -97,7 +100,6 @@ io.on('connection', async (socket: any) => {
                     videoUrl: data.videoUrl || null,
                     senderId: data.senderId,
                     receiverId: data.receiverId,
-                    createdAt: new Date(),
                 },
                 include: {
                     sender: true,

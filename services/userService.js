@@ -1,5 +1,6 @@
 // userService.js
 require('dotenv').config()
+const { exclude } = require('../utils/prismaHelper')
 
 const { PrismaClient, SourceType, NotificationTypes, FriendStatus } = require('@prisma/client');
 const bcrypt = require('bcrypt');
@@ -136,10 +137,16 @@ const getFriendsOfUser = async (userId) => {
                     where: {
                         status: 'ACCEPTED',
                     },
+                    select: {
+                        friendId: true,
+                    },
                 },
                 friendOf: {
                     where: {
                         status: 'ACCEPTED',
+                    },
+                    select: {
+                        userId: true,
                     },
                 },
             },
@@ -147,7 +154,6 @@ const getFriendsOfUser = async (userId) => {
 
         if (!userWithFriends) {
             return { EC: -3, EM: "No user was found" };
-
         }
 
         // Extract accepted friend IDs from friends and friendOf
@@ -170,12 +176,16 @@ const getFriendsOfUser = async (userId) => {
             take: 20,
         });
 
-        return acceptedFriends;
+        // Exclude the password field
+        const acceptedFriendsWithoutPassword = acceptedFriends.map(friend => exclude(friend, ['password']));
+
+        return acceptedFriendsWithoutPassword;
     } catch (error) {
         console.error('Error fetching accepted friends:', error);
         throw error;
     }
 };
+
 
 const getUsersNotInFriendsList = async (userId) => {
     try {
