@@ -43,15 +43,21 @@ app.use(chatRoutes);
 
 // Define your routes and middleware here
 
-// Handle Socket.IO connections
-io.on('connection', async (socket: any) => {
-    // console.log('A user connected:', socket.id);
-    console.log('check userassaoudbasodubasofboafbofdooi', socket.handshake.query.userId);
+interface MessageData {
+    content: string;
+    imageUrl?: string;
+    videoUrl?: string;
+    senderId: number;
+    listReceiverIds?: number[]; // Add list of receiver IDs for multiple recipients
+    receiverId?: number; // Single receiver ID for backward compatibility
+    type: 'DEFAULT' | 'POST_SHARE' | 'GROUP_INVITE';
+    sharedPostId?: number;
+}
 
-    // Extract userId from socket handshake query or other auth mechanism
+io.on('connection', async (socket: any) => {
+    console.log('A user connected:', socket.id);
     const userId = Number(socket.handshake.query.userId);
 
-    // Fetch and send previous messages to the connected user
     if (!isNaN(userId)) {
         try {
             const messages = await prisma.message.findMany({
@@ -64,12 +70,12 @@ io.on('connection', async (socket: any) => {
                 include: {
                     sender: true,
                     receiver: true,
+                    sharedPost: true, // Include the shared post
                 },
                 orderBy: { createdAt: 'asc' },
             });
 
-            // Separate messages into arrays based on senderId and receiverId
-            const userMessages: { [key: number]: any[] } = {}; // Type declaration for userMessages
+            const userMessages: { [key: number]: any[] } = {};
             messages.forEach((message: any) => {
                 const otherUserId = message.senderId === userId ? message.receiverId : message.senderId;
                 if (!userMessages[otherUserId]) {
@@ -78,7 +84,6 @@ io.on('connection', async (socket: any) => {
                 userMessages[otherUserId].push(message);
             });
 
-            // Emit the structured messages to the connected user
             socket.emit('initialMessages', userMessages);
         } catch (error) {
             console.error('Error fetching messages:', error);
@@ -87,38 +92,64 @@ io.on('connection', async (socket: any) => {
         console.error('Invalid userId:', userId);
     }
 
-    // Listen for new messages
-    socket.on('message', async (data: any) => {
+    socket.on('message', async (data: MessageData) => {
         console.log('Message received:', data);
 
-        // Save the message to the database
         try {
-            const newMessage = await prisma.message.create({
-                data: {
-                    content: data.content,
-                    imageUrl: data.imageUrl || null,
-                    videoUrl: data.videoUrl || null,
-                    senderId: data.senderId,
-                    receiverId: data.receiverId,
-                },
-                include: {
-                    sender: true,
-                    receiver: true,
-                },
-            });
+            if (data.type === 'POST_SHARE' && data.listReceiverIds) {
+                // Handle bulk message creation for multiple receivers
+                const newMessages = await prisma.$transaction(
+                    data.listReceiverIds.map(receiverId => prisma.message.create({
+                        data: {
+                            content: data.content,
+                            imageUrl: data.imageUrl || null,
+                            videoUrl: data.videoUrl || null,
+                            senderId: data.senderId,
+                            receiverId: receiverId,
+                            type: data.type,
+                            sharedPostId: data.sharedPostId, // Reference to the shared post
+                        },
+                        include: {
+                            sender: true,
+                            receiver: true,
+                            sharedPost: true, // Include the shared post
+                        },
+                    }))
+                );
 
-            // Emit the message to all relevant clients
-            io.emit('message', newMessage);
+                // Emit the messages to all relevant clients
+                newMessages.forEach((newMessage: any) => {
+                    io.emit('message', newMessage);
+                });
+            } else {
+                // Handle single message creation
+                const newMessage = await prisma.message.create({
+                    data: {
+                        content: data.content,
+                        imageUrl: data.imageUrl || null,
+                        videoUrl: data.videoUrl || null,
+                        senderId: data.senderId,
+                        receiverId: data.receiverId!,
+                        type: data.type,
+                    },
+                    include: {
+                        sender: true,
+                        receiver: true,
+                    },
+                });
+
+                io.emit('message', newMessage);
+            }
         } catch (error) {
             console.error('Error saving message:', error);
         }
     });
 
-    // Handle disconnections
     socket.on('disconnect', () => {
         console.log('A user disconnected:', socket.id);
     });
 });
+
 
 
 // Start the server

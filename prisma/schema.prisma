@@ -33,20 +33,21 @@ model User {
 }
 
 model Post {
-  id           Int          @id @default(autoincrement()) // Unique identifier for the post
-  content      String? // Optional text content for the post
-  imageUrl     String?      @db.LongText // Optional image URL for the post
-  videoUrl     String?      @db.LongText // Optional video URL for the post
-  author       User         @relation(fields: [authorId], references: [id]) // The user who created the post
-  authorId     Int // Foreign key referencing the user who created the post
-  comments     Comment[] // List of comments on the post
-  likes        Like[] // List of likes on the post
-  createdAt    DateTime     @default(now()) // Timestamp of post creation
-  updatedAt    DateTime     @updatedAt // Timestamp of last update
-  reactions    Reaction[] // List of reactions to the post
-  Group        Group?       @relation(fields: [groupId], references: [id])
-  groupId      Int?
-  publicStatus PublicStatus @default(PUBLIC) // Public status of the post
+  id               Int          @id @default(autoincrement())
+  content          String?
+  imageUrl         String?      @db.LongText
+  videoUrl         String?      @db.LongText
+  author           User         @relation(fields: [authorId], references: [id])
+  authorId         Int
+  comments         Comment[]
+  likes            Like[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  reactions        Reaction[]
+  group            Group?       @relation(fields: [groupId], references: [id])
+  groupId          Int?
+  publicStatus     PublicStatus @default(PUBLIC)
+  sharedInMessages Message[]    @relation("SharedMessages")
 }
 
 enum PublicStatus {
@@ -152,16 +153,25 @@ enum SourceType {
 }
 
 model Message {
-  id         Int      @id @default(autoincrement()) // Unique identifier for the message
-  content    String // Content of the message
-  imageUrl   String?  @db.LongText
-  videoUrl   String?  @db.LongText
-  sender     User     @relation("SentMessages", fields: [senderId], references: [id]) // The user who sent the message
-  senderId   Int // Foreign key referencing the sender
-  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id]) // The user who received the message
-  receiverId Int // Foreign key referencing the receiver
-  createdAt  DateTime @default(now()) // Timestamp of when the message was sent
-  updatedAt  DateTime @updatedAt // Timestamp of last update
+  id           Int         @id @default(autoincrement())
+  content      String
+  imageUrl     String?     @db.LongText
+  videoUrl     String?     @db.LongText
+  sender       User        @relation("SentMessages", fields: [senderId], references: [id])
+  senderId     Int
+  receiver     User        @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  receiverId   Int
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  type         MessageType @default(DEFAULT)
+  sharedPost   Post?       @relation("SharedMessages", fields: [sharedPostId], references: [id])
+  sharedPostId Int?
+}
+
+enum MessageType {
+  DEFAULT // Regular message
+  POST_SHARE // Message containing a shared post
+  GROUP_INVITE // Message containing a group invitation
 }
 
 model Group {
