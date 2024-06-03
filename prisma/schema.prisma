@@ -48,6 +48,18 @@ model Post {
   groupId          Int?
   publicStatus     PublicStatus @default(PUBLIC)
   sharedInMessages Message[]    @relation("SharedMessages")
+  type             PostType     @default(DEFAULT)
+  repostId         Int?
+  repost           Post?        @relation("Reposts", fields: [repostId], references: [id])
+  repostedPosts    Post[]       @relation("Reposts")
+}
+
+enum PostType {
+  DEFAULT
+  REPOST
+  EVENT
+  STORY
+  REVIEW
 }
 
 enum PublicStatus {

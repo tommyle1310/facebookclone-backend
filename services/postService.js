@@ -67,7 +67,6 @@ const getAllPosts = async (userId) => {
             orderBy: {
                 createdAt: 'desc',
             },
-            take: 3,
             skip: 0,
             include: {
                 author: true, // To get the author details for checking friends
@@ -76,6 +75,11 @@ const getAllPosts = async (userId) => {
                     include: {
                         author: true,
                         post: true,
+                    }
+                },
+                repost: {
+                    include: {
+                        author: true,
                     }
                 }
             },
@@ -346,9 +350,48 @@ const getPostComments = async (postId) => {
     }
 };
 
+const sharePost = async (userId, postData) => {
+    try {
+        // Validate the input
+        if (!userId || !postData) {
+            return { EC: -1, EM: 'Invalid input data' };
+        }
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            return { EC: -3, EM: "User not found" };
+        }
+
+        const post = await prisma.post.findUnique({ where: { id: postData.id } });
+        if (!post) {
+            return { EC: -3, EM: "Post not found" };
+        }
+
+        // Destructure postData to extract content, imageUrl, videoUrl, groupId, and publicStatus
+        const { type, content, publicStatus, groupId, repostId } = postData;
+
+        // Create the new post
+        const newPost = await prisma.post.create({
+            data: {
+                type: type,
+                repostId: repostId || null,
+                authorId: userId,
+                content: content || null,
+                groupId: groupId || null,
+                publicStatus: publicStatus || 'PUBLIC', // Default to PUBLIC if not provided
+            }
+        });
+
+        return { EC: 0, EM: 'Post shared successfully', post: newPost };
+    } catch (error) {
+        // Handle errors
+        console.error(error);
+        return { EC: -2, EM: 'Internal server error' };
+    }
+};
+
 
 module.exports = {
     createPost, getAllPosts, toggleLikePost,
     getLikedPosts, addCommentToPost, getPostComments,
-    getUserPosts
+    getUserPosts, sharePost
 };

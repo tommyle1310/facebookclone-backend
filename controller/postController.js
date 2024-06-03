@@ -78,8 +78,19 @@ const getPostComments = async (req, res) => {
     }
 };
 
+const sharePost = async (req, res) => {
+    try {
+        const { userId, postData } = req.body;
+        const result = await postService.sharePost(userId, postData);
+        res.status(200).json(result);
+    } catch (error) {
+        // Send error response
+        res.status(500).json(error);
+    }
+};
+
 module.exports = {
     createPost, getAllPosts, toggleLikePost,
     getLikedPosts, addCommentToPost, getPostComments,
-    getUserPosts
+    getUserPosts, sharePost
 };
