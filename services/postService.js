@@ -61,6 +61,7 @@ const getAllPosts = async (userId) => {
         }
 
         // Extract accepted friend IDs from friendOf
+        // console.log(user);
         const acceptedFriendOfIds = user.friendOf.map(friendship => friendship.userId);
         // Fetch posts with limit and offset
         const posts = await prisma.post.findMany({
@@ -112,6 +113,13 @@ const getUserPosts = async (userId, viewerId) => {
         // Check if the user exists
         const user = await prisma.user.findUnique({
             where: { id: userId },
+            include: {
+                friendOf: {
+                    where: {
+                        status: 'ACCEPTED',
+                    },
+                },
+            },
         });
 
         const viewer = await prisma.user.findUnique({
@@ -139,8 +147,17 @@ const getUserPosts = async (userId, viewerId) => {
                         post: true,
                     },
                 },
+                repost: {
+                    include: {
+                        author: true,
+                        repost: true
+                    },
+                }
             },
         });
+        console.log(user);
+        const acceptedFriendOfIds = user.friendOf.map(friendship => friendship.userId);
+
 
         // Filter posts based on visibility rules
         const filteredPosts = posts.filter(post => {
